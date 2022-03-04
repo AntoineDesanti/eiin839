@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
@@ -8,23 +9,69 @@ using System.Web;
 
 namespace BasicServerHTTPlistener
 {
+    /*
+     Urls to tests
+    - http://localhost:8080/404 
+    - http://localhost:8080/hello?param1=whatever
+
+     */
+
+
     public class MyReflectionClass
     {
-        public string MyMethod(object[] uriParams)
+        public string Hello(object[] uriParams)
         {
-            //HttpListenerRequest request =  uriParams[0];
-            string responseString = "<HTML><BODY> Hello in MyMethod!</BODY></HTML>";
-           /* Console.WriteLine("param1 = " + HttpUtility.ParseQueryString(request.Url.Query).Get("param1"));
-            Console.WriteLine("param2 = " + HttpUtility.ParseQueryString(request.Url.Query).Get("param2"));
-            Console.WriteLine("param3 = " + HttpUtility.ParseQueryString(request.Url.Query).Get("param3"));
-            Console.WriteLine("param4 = " + HttpUtility.ParseQueryString(request.Url.Query).Get("param4"));
-*/
+            HttpListenerRequest request =  (HttpListenerRequest) uriParams[0];
+            string responseString = "<HTML><BODY> Welcome in hello method!";
+            responseString += "<p> Parameter 1 is ";
+            responseString += HttpUtility.ParseQueryString(request.Url.Query).Get("param1") + "</p>";
+            responseString += "<p> Parameter 2 is ";
+            responseString += HttpUtility.ParseQueryString(request.Url.Query).Get("param2") + "</p>";
+            responseString += "<p> Parameter 3 is ";
+            responseString += HttpUtility.ParseQueryString(request.Url.Query).Get("param3") + "</p>";
+            responseString += "<p> Parameter 4 is ";
+            responseString += HttpUtility.ParseQueryString(request.Url.Query).Get("param4") + "</p>";
+
+            responseString += " </BODY></HTML>";
+
+            return responseString;
+        }
+
+        public string About(object[] uriParams)
+        {
+            HttpListenerRequest request = (HttpListenerRequest)uriParams[0];
+            string responseString = "<HTML><BODY> This is the about page ";
+            responseString += "<p> Parameter 1 is ";
+            responseString += HttpUtility.ParseQueryString(request.Url.Query).Get("param1") + "</p>";
+            responseString += "<p> Parameter 2 is ";
+            responseString += HttpUtility.ParseQueryString(request.Url.Query).Get("param2") + "</p>";
+            responseString += "<p> Parameter 3 is ";
+            responseString += HttpUtility.ParseQueryString(request.Url.Query).Get("param3") + "</p>";
+            responseString += "<p> Parameter 4 is ";
+            responseString += HttpUtility.ParseQueryString(request.Url.Query).Get("param4") + "</p>";
+
+
+            responseString += " </BODY></HTML>";
+
+            return responseString;
+        }
+
+        public string ErrorPage(object[] uriParams)
+        {
+            HttpListenerRequest request = (HttpListenerRequest)uriParams[0];
+            string responseString = "<HTML><BODY> The page you are looking for doesn't exist";
+            responseString += "<p> You can try the following links";
+            responseString += "<p> <a href='http://localhost:8080/Hello?param1=hello&param2=world&param3=!&param4=!'> Hello page</a></p>";
+            responseString += "<p> <a href='http://localhost:8080/About?param1=1&param2=2&param3=3&param4=100'>About page</a> </p>";
+            responseString += " </BODY></HTML>";
+
             return responseString;
         }
     }
 
     internal class Program
     {
+
         private static void Main(string[] args)
         {
 
@@ -35,8 +82,10 @@ namespace BasicServerHTTPlistener
                 return;
             }
 
-            // Create a listener.
-            HttpListener listener = new HttpListener();
+        string[] authorizedUri = { "Hello", "About" };
+
+        // Create a listener.
+        HttpListener listener = new HttpListener();
 
             // Add the prefixes.
             if (args.Length != 0)
@@ -78,15 +127,35 @@ namespace BasicServerHTTPlistener
                 HttpListenerContext context = listener.GetContext();
                 HttpListenerRequest request = context.Request;
 
-                Type type = typeof(MyReflectionClass);
-                MethodInfo method = type.GetMethod("MyMethod");
-                MyReflectionClass c = new MyReflectionClass();
-                // HttpListenerRequest[] uriParams = new HttpListenerRequest[1];
-                //uriParams[0] = request;
-                var uriParams = new object[2];
+                string uri = request.Url.LocalPath.ToString().Substring(1);
+
+                string result;
+
+                if (authorizedUri.Any(x => x.Contains(uri)))
+                {
+                    Type type = typeof(MyReflectionClass);
+                    MethodInfo method = type.GetMethod(uri);
+                    MyReflectionClass myReflectionClass = new MyReflectionClass();
+                    var uriParams = new object[2];
+                    uriParams[0] = request;
+                    result = (string)method.Invoke(myReflectionClass, new[] { uriParams });
+                }
+                else
+                {
+                    Type type = typeof(MyReflectionClass);
+                    MethodInfo method = type.GetMethod("ErrorPage" );
+                    MyReflectionClass myReflectionClass = new MyReflectionClass();
+                    var uriParams = new object[2];
+                    uriParams[0] = request;
+                    result = (string)method.Invoke(myReflectionClass, new[] { uriParams });
+                }
+                
+
+
+               
 
                // Console.WriteLine( ((HttpListenerRequest) uriParams[0]).Url);
-                string result = (string)c.Invoke(method, null);
+              
                 //Console.WriteLine(result);
                 //Console.ReadLine();
 
@@ -103,17 +172,6 @@ namespace BasicServerHTTPlistener
                 // get url 
                 Console.WriteLine($"Received request for {request.Url}");
 
-                //get url protocol
-                Console.WriteLine(request.Url.Scheme);
-                //get user in url
-                Console.WriteLine(request.Url.UserInfo);
-                //get host in url
-                Console.WriteLine(request.Url.Host);
-                //get port in url
-                Console.WriteLine(request.Url.Port);
-                //get path in url 
-                Console.WriteLine(request.Url.LocalPath);
-
                 // parse path in url 
                 foreach (string str in request.Url.Segments)
                 {
@@ -124,11 +182,6 @@ namespace BasicServerHTTPlistener
 
                 Console.WriteLine(request.Url.Query);
 
-                //parse params in url
-                Console.WriteLine("param1 = " + HttpUtility.ParseQueryString(request.Url.Query).Get("param1"));
-                Console.WriteLine("param2 = " + HttpUtility.ParseQueryString(request.Url.Query).Get("param2"));
-                Console.WriteLine("param3 = " + HttpUtility.ParseQueryString(request.Url.Query).Get("param3"));
-                Console.WriteLine("param4 = " + HttpUtility.ParseQueryString(request.Url.Query).Get("param4"));
 
                 //
                 Console.WriteLine(documentContents);
