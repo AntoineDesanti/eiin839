@@ -2,11 +2,27 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Reflection;
 using System.Text;
 using System.Web;
 
 namespace BasicServerHTTPlistener
 {
+    public class MyReflectionClass
+    {
+        public string MyMethod(object[] uriParams)
+        {
+            //HttpListenerRequest request =  uriParams[0];
+            string responseString = "<HTML><BODY> Hello in MyMethod!</BODY></HTML>";
+           /* Console.WriteLine("param1 = " + HttpUtility.ParseQueryString(request.Url.Query).Get("param1"));
+            Console.WriteLine("param2 = " + HttpUtility.ParseQueryString(request.Url.Query).Get("param2"));
+            Console.WriteLine("param3 = " + HttpUtility.ParseQueryString(request.Url.Query).Get("param3"));
+            Console.WriteLine("param4 = " + HttpUtility.ParseQueryString(request.Url.Query).Get("param4"));
+*/
+            return responseString;
+        }
+    }
+
     internal class Program
     {
         private static void Main(string[] args)
@@ -18,8 +34,7 @@ namespace BasicServerHTTPlistener
                 Console.WriteLine("A more recent Windows version is required to use the HttpListener class.");
                 return;
             }
- 
- 
+
             // Create a listener.
             HttpListener listener = new HttpListener();
 
@@ -28,12 +43,12 @@ namespace BasicServerHTTPlistener
             {
                 foreach (string s in args)
                 {
+
                     listener.Prefixes.Add(s);
                     // don't forget to authorize access to the TCP/IP addresses localhost:xxxx and localhost:yyyy 
                     // with netsh http add urlacl url=http://localhost:xxxx/ user="Tout le monde"
                     // and netsh http add urlacl url=http://localhost:yyyy/ user="Tout le monde"
                     // user="Tout le monde" is language dependent, use user=Everyone in english 
-
                 }
             }
             else
@@ -63,6 +78,19 @@ namespace BasicServerHTTPlistener
                 HttpListenerContext context = listener.GetContext();
                 HttpListenerRequest request = context.Request;
 
+                Type type = typeof(MyReflectionClass);
+                MethodInfo method = type.GetMethod("MyMethod");
+                MyReflectionClass c = new MyReflectionClass();
+                // HttpListenerRequest[] uriParams = new HttpListenerRequest[1];
+                //uriParams[0] = request;
+                var uriParams = new object[2];
+
+               // Console.WriteLine( ((HttpListenerRequest) uriParams[0]).Url);
+                string result = (string)c.Invoke(method, null);
+                //Console.WriteLine(result);
+                //Console.ReadLine();
+
+
                 string documentContents;
                 using (Stream receiveStream = request.InputStream)
                 {
@@ -71,7 +99,7 @@ namespace BasicServerHTTPlistener
                         documentContents = readStream.ReadToEnd();
                     }
                 }
-                
+
                 // get url 
                 Console.WriteLine($"Received request for {request.Url}");
 
@@ -109,7 +137,7 @@ namespace BasicServerHTTPlistener
                 HttpListenerResponse response = context.Response;
 
                 // Construct a response.
-                string responseString = "<HTML><BODY> Hello world!</BODY></HTML>";
+                string responseString = result;
                 byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
                 // Get a response stream and write the response to it.
                 response.ContentLength64 = buffer.Length;
